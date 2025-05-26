@@ -1,48 +1,54 @@
 var express = require('express');
-const  route  = require('.');
-var router = express.Router();
+var router = express.Router();  // <--- definir router correctamente
+var db = require('../Config/db');  // <--- asegúrate que la carpeta sea 'config' en minúsculas
 
-let tasks = [
-    {
-        id: 1,
-        name: 'Task 1',
-        description: 'Description for Task 1'
-    },
-    {
-        id: 2,
-        name: 'Task 2',
-        description: 'Description for Task 2'
-    },
-    {
-        id: 3,
-        name: 'Task 3',
-        description: 'Description for Task 3'
-    }
-]
+// Obtener todas las tareas
 router.get('/getTasks', function(req, res, next) {
-
-    res.json(tasks);
-})
-
-router.delete('/deleteTask/:id', function(req, res, next) {
-    const taskId = parseInt(req.params.id);
-    const task = tasks.find(task => task.id === taskId);
-    if (!task){
-        return res.status(400).json({ message: 'Task no found' });
-        }else{
-        tasks = tasks.filter(task => task.id !== taskId);
-        res.json({ message: 'Task deleted successfully' });
+    const query = 'SELECT * FROM tasks';
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al obtener las tareas', error: err });
         }
+        res.status(200).json(results);
+    });
 });
 
+// Eliminar una tarea por ID
+router.delete('/deleteTask/:id', function(req, res, next) {
+    const taskId = parseInt(req.params.id, 10);
+    if (isNaN(taskId)) {
+        return res.status(400).json({ message: 'ID inválido' });
+    }
+
+    const query = 'DELETE FROM tasks WHERE id = ?';
+
+    db.query(query, [taskId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al eliminar la tarea', error: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Tarea no encontrada' });
+        }
+        res.status(200).json({ message: 'Tarea eliminada exitosamente' });
+    });
+});
+
+// Agregar una nueva tarea
 router.post('/addTask', function(req, res, next) {
-    const newTask = {
-        id: tasks.length + 1,
-        name: req.body.name,
-        description: req.body.description
-    };
-    tasks.push(newTask);
-    res.json({ message: 'Task added successfully', task: newTask });
+    const { name, description } = req.body;
+
+    if (!name || !description) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios: name y description' });
+    }
+
+    const query = 'INSERT INTO tasks (name, description) VALUES (?, ?)';
+
+    db.query(query, [name, description], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al agregar la tarea', error: err });
+        }
+        res.status(201).json({ message: 'Tarea agregada exitosamente', task: { id: result.insertId, name, description } });
+    });
 });
 
 module.exports = router;

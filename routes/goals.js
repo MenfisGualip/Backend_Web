@@ -1,51 +1,57 @@
 var express = require('express');
 var router = express.Router();
-
-let goals = [
-    {
-        id: 1,
-        title: 'Goal 1',
-        description: 'Description for Goal 1'
-    },
-    {
-        id: 2,
-        title: 'Goal 2',
-        description: 'Description for Goal 2'
-    },
-    {
-        id: 3,
-        title: 'Goal 3',
-        description: 'Description for Goal 3'
-    }
-];
+var db = require('../Config/db');  // Asegúrate que la carpeta sea config
 
 // Obtener todos los objetivos
 router.get('/getGoals', function(req, res, next) {
-    res.json(goals);
+    const query = 'SELECT * FROM goals';
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al obtener las metas', error: err });
+        }
+        res.status(200).json(results);
+    });
 });
 
 // Eliminar un objetivo por ID
-router.delete('/deleteGoal/:id', function(req, res, next) {
-    const goalId = parseInt(req.params.id);
-    const goal = goals.find(goal => goal.id === goalId);
-
-    if (!goal) {
-        return res.status(400).json({ message: 'Goal not found' });
-    } else {
-        goals = goals.filter(goal => goal.id !== goalId);
-        res.json({ message: 'Goal deleted successfully' });
+router.delete('/removeGoal/:id', function(req, res, next) {
+    const goalId = parseInt(req.params.id, 10);
+    if (isNaN(goalId)) {
+        return res.status(400).json({ message: 'ID inválido' });
     }
+
+    const query = 'DELETE FROM goals WHERE id = ?';
+
+    db.query(query, [goalId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al eliminar la meta', error: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Meta no encontrada' });
+        }
+        res.status(200).json({ message: 'Meta eliminada exitosamente' });
+    });
 });
 
 // Agregar un nuevo objetivo
 router.post('/addGoal', function(req, res, next) {
-    const newGoal = {
-        id: goals.length + 1,
-        title: req.body.title,
-        description: req.body.description
-    };
-    goals.push(newGoal);
-    res.json({ message: 'Goal added successfully', goal: newGoal });
+    const { title, description } = req.body;
+
+    if (!title || !description) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios: title y description' });
+    }
+
+    const query = 'INSERT INTO goals (title, description) VALUES (?, ?)';
+
+    db.query(query, [title, description], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al agregar la meta', error: err });
+        }
+        res.status(201).json({ 
+            message: 'Meta agregada exitosamente', 
+            goal: { id: result.insertId, title, description } 
+        });
+    });
 });
 
 module.exports = router;
