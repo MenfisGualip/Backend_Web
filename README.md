@@ -29,7 +29,7 @@ npm start
 
 ## Por defecto, la API se ejecutará en:
 
-http://localhost:3000
+http://localhost:3001
 
 ## Autenticación
 
